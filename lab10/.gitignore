@@ -1,0 +1,11 @@
+.env
+node_modules
+uploads/*
+!uploads/.gitkeep
+data/cache/*
+!data/cache/.gitkeep
+data/backups/*
+!data/backups/.gitkeep
+
+coverage
+.env.test.local

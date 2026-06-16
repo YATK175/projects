@@ -1,0 +1,15 @@
+export const MESSAGES = {
+  BOOK_CREATED: 'Book created successfully',
+  BOOK_UPDATED: 'Book updated successfully',
+  BOOK_REPLACED: 'Book replaced successfully',
+  BOOK_DELETED: 'Book deleted successfully',
+  BOOK_NOT_FOUND: 'Book not found',
+  BACKUP_NOT_FOUND: 'Backup file not found',
+  ROUTE_NOT_FOUND: 'Route not found',
+  SERVER_CLOSED: 'Server closed',
+  UNAUTHORIZED: 'Unauthorized',
+  INVALID_IMPORT_FILE: 'Unsupported file type. Upload CSV or JSON file',
+  IMAGE_TYPE_NOT_ALLOWED: 'Only image/jpeg and image/png files are allowed',
+  IMAGE_UPLOADED: 'Image uploaded successfully',
+  GITHUB_REPO_REQUIRED: 'Query parameter repo is required, for example fastify/fastify',
+};

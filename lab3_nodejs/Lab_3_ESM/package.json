@@ -1,0 +1,40 @@
+{
+  "name": "lab-3-book-catalog-esm",
+  "version": "1.0.0",
+  "description": "Laboratory work 3. Node.js Book Catalog API, variant 3, ESM implementation.",
+  "main": "src/app.js",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "imports": {
+    "#config/*": "./src/config/*.js",
+    "#constants/*": "./src/constants/*.js",
+    "#controllers/*": "./src/controllers/*.js",
+    "#data/*": "./src/data/*.js",
+    "#repositories/*": "./src/repositories/*.js",
+    "#routes/*": "./src/routes/*.js",
+    "#services/*": "./src/services/*.js",
+    "#utils/*": "./src/utils/*.js",
+    "#validators/*": "./src/validators/*.js"
+  },
+  "scripts": {
+    "start": "node --env-file=.env src/app.js",
+    "predev": "npm run check",
+    "dev": "node --env-file=.env --watch src/app.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "check": "npm run lint && npm run format:check"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "eslint": "^9.17.0",
+    "globals": "^15.14.0",
+    "prettier": "^3.4.2"
+  }
+}

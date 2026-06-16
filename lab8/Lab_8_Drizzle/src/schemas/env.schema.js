@@ -1,0 +1,32 @@
+const envSchema = {
+  type: 'object',
+  required: [
+    'HOSTNAME',
+    'PORT',
+    'NODE_ENV',
+    'ADMIN_API_KEY',
+    'PRODUCTION_CORS_ORIGIN',
+    'EXTERNAL_API_URL',
+    'MYSQL_HOST',
+    'MYSQL_PORT',
+    'MYSQL_USER',
+    'MYSQL_PASSWORD',
+    'MYSQL_DB',
+  ],
+  properties: {
+    HOSTNAME: { type: 'string', minLength: 1 },
+    PORT: { type: 'integer', minimum: 1, maximum: 65535 },
+    NODE_ENV: { type: 'string', enum: ['development', 'production'] },
+    ADMIN_API_KEY: { type: 'string', minLength: 8 },
+    PRODUCTION_CORS_ORIGIN: { type: 'string', minLength: 1 },
+    EXTERNAL_API_URL: { type: 'string', minLength: 1 },
+    MYSQL_HOST: { type: 'string', minLength: 1 },
+    MYSQL_PORT: { type: 'integer', minimum: 1, maximum: 65535 },
+    MYSQL_USER: { type: 'string', minLength: 1 },
+    MYSQL_PASSWORD: { type: 'string' },
+    MYSQL_DB: { type: 'string', minLength: 1 },
+  },
+  additionalProperties: true,
+};
+
+export { envSchema };

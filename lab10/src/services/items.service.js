@@ -1,0 +1,203 @@
+import { createWriteStream } from 'fs';
+import path from 'path';
+import { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
+import { parse } from 'csv-parse/sync';
+import { stringify as createCsvStringifier } from 'csv-stringify';
+import { stringify } from 'csv-stringify/sync';
+import { externalReferenceService } from '#services/external-reference.service';
+import { BookAgeTransform } from '#transforms/book-age.transform';
+import { ImageUrlTransform } from '#transforms/image-url.transform';
+import { NdjsonTransform } from '#transforms/ndjson.transform';
+import { getUploadDirById } from '#utils/paths';
+import { ensureDir } from '#utils/file';
+import { validateImportItem } from '#utils/validation';
+import { REDIS_KEYS } from '#constants/redis-keys';
+
+const CSV_COLUMNS = ['id', 'title', 'author', 'year', 'genre', 'image'];
+const CSV_TRANSFORM_COLUMNS = [...CSV_COLUMNS, 'age'];
+
+const CACHE_TTL_SECONDS = 24 * 60 * 60;
+
+const invalidateItemsCache = async (redis) => {
+  if (!redis) return;
+  const keys = await redis.keys(REDIS_KEYS.itemsV2Pattern);
+  if (keys.length > 0) await redis.del(keys);
+};
+
+export const createItemsService = (itemsRepository, redis = null) => ({
+  async getItems(author) {
+    const items = await itemsRepository.findAll(author);
+
+    return {
+      count: items.length,
+      items,
+    };
+  },
+
+  async getPaginatedItems({ author, page = 1, limit = 10 }) {
+    const cacheKey = REDIS_KEYS.itemsV2({ page, limit, author: author ?? '' });
+    if (redis) {
+      const cached = await redis.get(cacheKey);
+      if (cached !== null) return JSON.parse(cached);
+    }
+
+    const items = await itemsRepository.findAll(author);
+    const total = items.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const start = (page - 1) * limit;
+    const data = items.slice(start, start + limit);
+
+    const result = {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages,
+      },
+    };
+
+    if (redis) await redis.set(cacheKey, JSON.stringify(result), 'EX', CACHE_TTL_SECONDS);
+    return result;
+  },
+
+  async getBookById(id) {
+    return itemsRepository.findById(id);
+  },
+
+  async getBookDetails({ id, externalApiUrl, logger }) {
+    const book = await itemsRepository.findById(id);
+
+    if (!book) {
+      return null;
+    }
+
+    const genreDetails = await externalReferenceService.getGenreByName(
+      externalApiUrl,
+      book.genre,
+      logger,
+      redis,
+    );
+
+    return {
+      ...book,
+      genreDetails,
+    };
+  },
+
+  async createBook(data) {
+    const item = await itemsRepository.create(data);
+    await invalidateItemsCache(redis);
+    return item;
+  },
+
+  async updateBook(id, updates) {
+    const item = await itemsRepository.patch(id, updates);
+    if (item) await invalidateItemsCache(redis);
+    return item;
+  },
+
+  async replaceBook(id, data) {
+    const item = await itemsRepository.replace(id, data);
+    if (item) await invalidateItemsCache(redis);
+    return item;
+  },
+
+  async deleteBook(id) {
+    const isDeleted = await itemsRepository.delete(id);
+    if (isDeleted) await invalidateItemsCache(redis);
+    return isDeleted;
+  },
+
+  async exportCsv(items) {
+    return stringify(items, {
+      header: true,
+      columns: CSV_COLUMNS,
+    });
+  },
+
+  createCsvExportStream({ request, author, transform = false }) {
+    const source = Readable.from(itemsRepository.streamAll(author));
+    const imageTransform = new ImageUrlTransform(request);
+    const csvStringifier = createCsvStringifier({
+      header: true,
+      columns: transform ? CSV_TRANSFORM_COLUMNS : CSV_COLUMNS,
+    });
+
+    if (transform) {
+      return source.pipe(imageTransform).pipe(new BookAgeTransform()).pipe(csvStringifier);
+    }
+
+    return source.pipe(imageTransform).pipe(csvStringifier);
+  },
+
+  createNdjsonStream({ request, author }) {
+    return Readable.from(itemsRepository.streamAll(author))
+      .pipe(new ImageUrlTransform(request))
+      .pipe(new NdjsonTransform());
+  },
+
+  parseImportFile(file) {
+    const content = file.buffer.toString('utf8');
+    const filename = file.filename.toLowerCase();
+
+    if (file.mimetype === 'application/json' || filename.endsWith('.json')) {
+      const data = JSON.parse(content);
+      return Array.isArray(data) ? data : [data];
+    }
+
+    if (file.mimetype === 'text/csv' || filename.endsWith('.csv')) {
+      return parse(content, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+      });
+    }
+
+    return null;
+  },
+
+  async importItems(records) {
+    const rejected = [];
+    let imported = 0;
+
+    for (const [index, record] of records.entries()) {
+      const validation = validateImportItem(record);
+
+      if (!validation.valid) {
+        rejected.push({ row: index + 1, reason: validation.errors.join('; ') });
+        continue;
+      }
+
+      await itemsRepository.create(validation.data);
+      imported += 1;
+    }
+
+    return {
+      imported,
+      rejectedCount: rejected.length,
+      rejected,
+    };
+  },
+
+  async saveImage(id, data) {
+    const item = await itemsRepository.findById(id);
+
+    if (!item) {
+      return null;
+    }
+
+    const ext = data.mimetype === 'image/png' ? '.png' : '.jpg';
+    const fileName = `image${ext}`;
+    const uploadDir = getUploadDirById(id);
+    const filePath = path.join(uploadDir, fileName);
+
+    await ensureDir(uploadDir);
+    await pipeline(data.file, createWriteStream(filePath));
+
+    return itemsRepository.patch(id, {
+      image: `/${id}/${fileName}`,
+    });
+  },
+});

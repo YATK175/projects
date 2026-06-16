@@ -1,0 +1,30 @@
+# Команди для виконання лабораторної роботи №3 у власному репозиторії
+
+# 1. Додати зовнішній репозиторій із прикладами CJS/ESM
+git remote add source https://github.com/Sega-128/framework_technology_2026.git
+
+git fetch source lab-3-esm-cjs
+
+git checkout -b lab-3-esm-cjs source/lab-3-esm-cjs
+
+git push -u origin lab-3-esm-cjs
+
+# 2. Створити гілку CommonJS з попередньої лабораторної
+git checkout Lab_2
+
+git checkout -b Lab_3_Common
+
+# Після внесення змін:
+git add .
+git commit -m "Lab 3 CommonJS implementation"
+git push -u origin Lab_3_Common
+
+# 3. Створити гілку ESM з CommonJS-гілки
+git checkout Lab_3_Common
+
+git checkout -b Lab_3_ESM
+
+# Після переписування на ESM:
+git add .
+git commit -m "Lab 3 ESM implementation"
+git push -u origin Lab_3_ESM

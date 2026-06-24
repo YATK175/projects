@@ -27,3 +27,13 @@ docker compose up --build
 ```
 
 The compose file starts the application, MySQL, Redis and an auxiliary JSON Server.
+
+Список книг:http://localhost:3000/api/v1/items
+
+Одна книга:http://localhost:3000/api/v1/items/1
+
+Пагінація другої версії АРІ:http://localhost:3000/api/v2/items?page=1&limit=10
+
+Swagger:http://localhost:3000/docs
+
+JSON-Swager:http://localhost:3000/docs/json
